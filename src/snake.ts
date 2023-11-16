@@ -41,8 +41,6 @@ const getStaticPath = (path: string): string => {
 
 const loadImage = (name: string, img: HTMLImageElement) => {
   return new Promise((resolve, reject) => {
-    img.width = size;
-    img.height = size;
     img.src = getStaticPath(`${name}.png`);
     img.onload = resolve;
     img.onerror = reject;
@@ -58,7 +56,7 @@ const loadAssets = () => {
   );
 };
 
-const updateSnake = () => {
+const moveSnake = () => {
   snake.pop();
   let { x, y, direction } = snake[0];
   if (direction === "right") x++;
@@ -69,7 +67,7 @@ const updateSnake = () => {
 };
 
 const render = () => {
-  updateSnake();
+  moveSnake();
   clearCanvas();
   drawBackGround();
   drawSnake();
@@ -114,8 +112,7 @@ const drawSnake = () => {
 };
 
 const drawSnakeHead = () => {
-  let { x, y, direction } = snake[0];
-
+  let direction = snake[0].direction;
   let head: HTMLImageElement | null = null;
 
   if (direction === "top") {
@@ -130,7 +127,21 @@ const drawSnakeHead = () => {
 
   if (!head) return;
 
-  ctx.drawImage(head, x * size, y * size, size, size);
+  let x = snake[0].x;
+  let y = snake[0].y;
+
+  if (x > totalRows) x = 0;
+  else if (x < 0) x = totalRows;
+  else if (y < 0) y = totalColumns;
+  else if (y > totalColumns) y = 0;
+
+  snake[0].x = x;
+  snake[0].y = y;
+
+  x *= size;
+  y *= size;
+
+  ctx.drawImage(head, x, y, size, size);
 };
 
 const drawSnakeTail = () => {
