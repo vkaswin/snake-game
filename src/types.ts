@@ -21,3 +21,11 @@ type IGameAssets = Record<
   | "tailRight",
   HTMLImageElement
 >;
+
+type IDirection = "right" | "left" | "top" | "bottom";
+
+type ISnake = {
+  x: number;
+  y: number;
+  direction: IDirection;
+}[];
