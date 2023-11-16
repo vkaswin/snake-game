@@ -1,3 +1,5 @@
+import { rawListeners } from "process";
+
 const canvas = document.createElement("canvas");
 const ctx = canvas.getContext("2d")!;
 const backgroundColor = "#AAD751";
@@ -24,17 +26,35 @@ const assests = [
 const images = {} as IGameAssets;
 
 let intervalId: ReturnType<typeof setInterval> | null = null;
-let appleRect: IApple = {
-  x: 8,
-  y: 5,
-};
-let gameSpeed = 100;
+let appleRect = {} as IApple;
+let gameSpeed = 120;
 let snake: ISnake = [
-  { x: 7, y: 5, direction: "right" },
-  { x: 6, y: 5, direction: "right" },
-  { x: 5, y: 5, direction: "right" },
+  {
+    x: 13,
+    y: 14,
+    direction: "right",
+  },
+  {
+    x: 12,
+    y: 14,
+    direction: "right",
+  },
+  {
+    x: 12,
+    y: 13,
+    direction: "bottom",
+  },
+  {
+    x: 13,
+    y: 13,
+    direction: "left",
+  },
+  {
+    x: 14,
+    y: 13,
+    direction: "left",
+  },
 ];
-
 const getStaticPath = (path: string): string => {
   return `${import.meta.env.BASE_URL}${path}`;
 };
@@ -57,12 +77,19 @@ const loadAssets = () => {
 };
 
 const moveSnake = () => {
-  snake.pop();
   let { x, y, direction } = snake[0];
+
+  if (appleRect.x === x && appleRect.y === y) {
+    appleRect = getAppleRect();
+  } else {
+    snake.pop();
+  }
+
   if (direction === "right") x++;
   else if (direction === "left") x--;
   else if (direction === "top") y--;
   else if (direction === "bottom") y++;
+
   snake.unshift({ x, y, direction });
 };
 
@@ -70,8 +97,8 @@ const render = () => {
   moveSnake();
   clearCanvas();
   drawBackGround();
-  drawSnake();
   drawApple();
+  drawSnake();
 };
 
 const clearCanvas = () => {
@@ -106,13 +133,15 @@ const drawApple = () => {
 };
 
 const drawSnake = () => {
-  drawSnakeHead();
-  drawSnakeBody();
-  drawSnakeTail();
+  for (let i = 0; i < snake.length; i++) {
+    if (i === 0) drawSnakeHead();
+    else if (i === snake.length - 1) drawSnakeTail();
+    else drawSnakeBody(i);
+  }
 };
 
 const drawSnakeHead = () => {
-  let direction = snake[0].direction;
+  let { x, y, direction } = snake[0];
   let head: HTMLImageElement | null = null;
 
   if (direction === "top") {
@@ -127,13 +156,10 @@ const drawSnakeHead = () => {
 
   if (!head) return;
 
-  let x = snake[0].x;
-  let y = snake[0].y;
-
-  if (x > totalRows) x = 0;
+  if (x >= totalRows) x = 0;
   else if (x < 0) x = totalRows;
   else if (y < 0) y = totalColumns;
-  else if (y > totalColumns) y = 0;
+  else if (y >= totalColumns) y = 0;
 
   snake[0].x = x;
   snake[0].y = y;
@@ -164,11 +190,24 @@ const drawSnakeTail = () => {
   ctx.drawImage(tail, x * size, y * size, size, size);
 };
 
-const drawSnakeBody = () => {
-  for (let i = 1; i <= snake.length - 2; i++) {
-    let { x, y, direction } = snake[i];
-    ctx.drawImage(images.bodyHorizontal, x * size, y * size, size, size);
+const drawSnakeBody = (index: number) => {
+  let { x, y, direction } = snake[index];
+
+  let body: HTMLImageElement | null = null;
+
+  let next = snake[index - 1];
+  let prev = snake[index + 1];
+
+  if (prev.x === x && next.x === x) {
+    body = images.bodyVertical;
+  } else if (prev.y === y && next.y === y) {
+    body = images.bodyHorizontal;
+  } else {
   }
+
+  if (!body) return;
+
+  ctx.drawImage(body, x * size, y * size, size, size);
 };
 
 const start = () => {
@@ -203,6 +242,7 @@ const init = async (selector: string) => {
   await loadAssets();
   canvas.width = totalRows * size;
   canvas.height = totalColumns * size;
+  appleRect = getAppleRect();
   container.append(canvas);
   drawBackGround();
   drawSnake();

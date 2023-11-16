@@ -1,7 +1,7 @@
 type IApple = {
   x: number;
   y: number;
-} | null;
+};
 
 type IGameAssets = Record<
   | "apple"
