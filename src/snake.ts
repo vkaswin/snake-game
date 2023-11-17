@@ -37,7 +37,7 @@ let intervalId: ReturnType<typeof setInterval> | null = null;
 let appleRect = {} as IApple;
 let gameSpeed = 100;
 let score = 0;
-let snake: ISnake[] = [
+let initialSnake: ISnake[] = [
   {
     x: 19,
     y: 10,
@@ -54,6 +54,8 @@ let snake: ISnake[] = [
     direction: "right",
   },
 ];
+
+let snake: ISnake[] = [...initialSnake];
 
 const loadImage = (name: string, img: HTMLImageElement) => {
   return new Promise((resolve, reject) => {
@@ -271,6 +273,15 @@ const handleKeyDown = (event: KeyboardEvent) => {
   }
 };
 
+const restart = () => {
+  snake = [...initialSnake];
+  clearBoard();
+  drawBackGround();
+  drawSnake();
+  drawApple();
+  start();
+};
+
 const init = async (selector: string) => {
   let container = document.querySelector(selector);
 
@@ -291,6 +302,7 @@ const init = async (selector: string) => {
 export default {
   init,
   start,
+  restart,
   addEventListener: eventEmiter.addEventListener.bind(eventEmiter),
   removeEventListener: eventEmiter.removeEventListener.bind(eventEmiter),
 };
