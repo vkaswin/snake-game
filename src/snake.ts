@@ -1,11 +1,16 @@
-import { rawListeners } from "process";
+import EventEmitter from "./eventEmitter";
+
+const getStaticPath = (path: string): string => {
+  return `${import.meta.env.BASE_URL}${path}`;
+};
 
 const canvas = document.createElement("canvas");
 const ctx = canvas.getContext("2d")!;
-const backgroundColor = "#AAD751";
-const size = 30;
-const totalRows = 40;
+const size = 35;
+const totalRows = 35;
 const totalColumns = 20;
+const darkBg = "#8ECC39";
+const lightBg = "#A8D948";
 const assests = [
   "apple",
   "bodyVertical",
@@ -24,40 +29,31 @@ const assests = [
   "tailRight",
 ] as const;
 const images = {} as IGameAssets;
+const eventEmiter = new EventEmitter();
+const foodSound = new Audio(getStaticPath("crunch.wav"));
+const gameOverSound = new Audio(getStaticPath("gameOver.mp3"));
 
 let intervalId: ReturnType<typeof setInterval> | null = null;
 let appleRect = {} as IApple;
-let gameSpeed = 120;
-let snake: ISnake = [
+let gameSpeed = 100;
+let score = 0;
+let snake: ISnake[] = [
   {
-    x: 13,
-    y: 14,
+    x: 19,
+    y: 10,
     direction: "right",
   },
   {
-    x: 12,
-    y: 14,
+    x: 18,
+    y: 10,
     direction: "right",
   },
   {
-    x: 12,
-    y: 13,
-    direction: "bottom",
-  },
-  {
-    x: 13,
-    y: 13,
-    direction: "left",
-  },
-  {
-    x: 14,
-    y: 13,
-    direction: "left",
+    x: 17,
+    y: 10,
+    direction: "right",
   },
 ];
-const getStaticPath = (path: string): string => {
-  return `${import.meta.env.BASE_URL}${path}`;
-};
 
 const loadImage = (name: string, img: HTMLImageElement) => {
   return new Promise((resolve, reject) => {
@@ -80,6 +76,8 @@ const moveSnake = () => {
   let { x, y, direction } = snake[0];
 
   if (appleRect.x === x && appleRect.y === y) {
+    foodSound.play();
+    eventEmiter.emit("score-change", ++score);
     appleRect = getAppleRect();
   } else {
     snake.pop();
@@ -94,35 +92,59 @@ const moveSnake = () => {
 };
 
 const render = () => {
+  if (checkCollision()) return handleGameOver();
   moveSnake();
-  clearCanvas();
+  clearBoard();
   drawBackGround();
   drawApple();
   drawSnake();
 };
 
-const clearCanvas = () => {
+const handleGameOver = () => {
+  if (!intervalId) return;
+  gameOverSound.play();
+  clearInterval(intervalId);
+  intervalId = null;
+  eventEmiter.emit("game-over");
+};
+
+const checkCollision = () => {
+  let { x, y } = snake[0];
+
+  return snake.some((body, index) => {
+    if (index === 0) return false;
+    return body.x === x && body.y === y;
+  });
+};
+
+const clearBoard = () => {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 };
 
 const drawBackGround = () => {
   ctx.save();
-  ctx.fillStyle = backgroundColor;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.fill();
+
+  for (let i = 0; i < totalRows; i++) {
+    let color = i % 2 === 0 ? darkBg : lightBg;
+    for (let j = 0; j < totalColumns; j++) {
+      ctx.fillStyle = color;
+      ctx.fillRect(i * size, j * size, size, size);
+      ctx.fill();
+      color = color === darkBg ? lightBg : darkBg;
+    }
+  }
+
   ctx.restore();
 };
 
-const getAppleRect = () => {
+const getAppleRect = (): IApple => {
   let x = Math.floor(Math.random() * totalRows);
   let y = Math.floor(Math.random() * totalColumns);
-
-  return { x, y };
+  let isInSake = snake.some((body) => body.x === x && body.y === y);
+  return isInSake ? getAppleRect() : { x, y };
 };
 
 const drawApple = () => {
-  if (!appleRect) appleRect = getAppleRect();
-
   ctx.drawImage(
     images.apple,
     appleRect.x * size,
@@ -133,16 +155,16 @@ const drawApple = () => {
 };
 
 const drawSnake = () => {
-  for (let i = 0; i < snake.length; i++) {
-    if (i === 0) drawSnakeHead();
-    else if (i === snake.length - 1) drawSnakeTail();
+  for (let i = snake.length - 1; i >= 0; i--) {
+    if (i === 0) drawSnakeHead(i);
+    else if (i === snake.length - 1) drawSnakeTail(i);
     else drawSnakeBody(i);
   }
 };
 
-const drawSnakeHead = () => {
-  let { x, y, direction } = snake[0];
-  let head: HTMLImageElement | null = null;
+const drawSnakeHead = (index: number) => {
+  let head;
+  let { x, y, direction } = snake[index];
 
   if (direction === "top") {
     head = images.headUp;
@@ -170,10 +192,9 @@ const drawSnakeHead = () => {
   ctx.drawImage(head, x, y, size, size);
 };
 
-const drawSnakeTail = () => {
-  let { x, y, direction } = snake[snake.length - 1];
-
-  let tail: HTMLImageElement | null = null;
+const drawSnakeTail = (index: number) => {
+  let tail;
+  let { x, y, direction } = snake[index];
 
   if (direction === "top") {
     tail = images.tailDown;
@@ -191,18 +212,36 @@ const drawSnakeTail = () => {
 };
 
 const drawSnakeBody = (index: number) => {
+  let body;
   let { x, y, direction } = snake[index];
 
-  let body: HTMLImageElement | null = null;
-
-  let next = snake[index - 1];
-  let prev = snake[index + 1];
+  let next = snake[index - 1]; // towards head
+  let prev = snake[index + 1]; // towards tail
 
   if (prev.x === x && next.x === x) {
     body = images.bodyVertical;
   } else if (prev.y === y && next.y === y) {
     body = images.bodyHorizontal;
-  } else {
+  } else if (
+    (prev.direction === "right" && direction === "top") ||
+    (prev.direction === "bottom" && direction === "left")
+  ) {
+    body = images.bodyTopLeft;
+  } else if (
+    (prev.direction === "left" && direction === "bottom") ||
+    (prev.direction === "top" && direction === "right")
+  ) {
+    body = images.bodyBottomRight;
+  } else if (
+    (prev.direction === "bottom" && direction === "right") ||
+    (prev.direction === "left" && direction === "top")
+  ) {
+    body = images.bodyTopRight;
+  } else if (
+    (prev.direction === "right" && direction === "bottom") ||
+    (prev.direction === "top" && direction === "left")
+  ) {
+    body = images.bodyBottomLeft;
   }
 
   if (!body) return;
@@ -249,4 +288,9 @@ const init = async (selector: string) => {
   drawApple();
 };
 
-export default { init, start };
+export default {
+  init,
+  start,
+  addEventListener: eventEmiter.addEventListener.bind(eventEmiter),
+  removeEventListener: eventEmiter.removeEventListener.bind(eventEmiter),
+};

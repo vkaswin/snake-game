@@ -28,4 +28,4 @@ type ISnake = {
   x: number;
   y: number;
   direction: IDirection;
-}[];
+};
