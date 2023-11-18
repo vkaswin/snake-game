@@ -7,8 +7,11 @@ const getStaticPath = (path: string): string => {
 const canvas = document.createElement("canvas");
 const ctx = canvas.getContext("2d")!;
 const size = 35;
-const totalRows = 35;
-const totalColumns = 20;
+const offset = size * 2;
+const totalRows = Math.floor((innerWidth - offset) / size);
+const totalColumns = Math.floor((innerHeight - offset) / size);
+let midX = Math.floor(totalRows / 2);
+let midY = Math.floor(totalColumns / 2);
 const darkBg = "#8ECC39";
 const lightBg = "#A8D948";
 const assests = [
@@ -32,26 +35,28 @@ const images = {} as IGameAssets;
 const eventEmiter = new EventEmitter();
 const foodSound = new Audio(getStaticPath("crunch.wav"));
 const gameOverSound = new Audio(getStaticPath("gameOver.mp3"));
+const initialDirection: IDirection = "right";
 
+let snakeDirection: IDirection = initialDirection;
 let intervalId: ReturnType<typeof setInterval> | null = null;
 let appleRect = {} as IApple;
 let gameSpeed = 100;
 let score = 0;
 let initialSnake: ISnake[] = [
   {
-    x: 19,
-    y: 10,
-    direction: "right",
+    x: midX,
+    y: midY,
+    direction: initialDirection,
   },
   {
-    x: 18,
-    y: 10,
-    direction: "right",
+    x: midX - 1,
+    y: midY,
+    direction: initialDirection,
   },
   {
-    x: 17,
-    y: 10,
-    direction: "right",
+    x: midX - 2,
+    y: midY,
+    direction: initialDirection,
   },
 ];
 
@@ -75,7 +80,7 @@ const loadAssets = () => {
 };
 
 const moveSnake = () => {
-  let { x, y, direction } = snake[0];
+  let { x, y } = snake[0];
 
   if (appleRect.x === x && appleRect.y === y) {
     foodSound.play();
@@ -85,12 +90,18 @@ const moveSnake = () => {
     snake.pop();
   }
 
-  if (direction === "right") x++;
-  else if (direction === "left") x--;
-  else if (direction === "top") y--;
-  else if (direction === "bottom") y++;
+  if (snakeDirection === "right") x++;
+  else if (snakeDirection === "left") x--;
+  else if (snakeDirection === "top") y--;
+  else if (snakeDirection === "bottom") y++;
 
-  snake.unshift({ x, y, direction });
+  if (x >= totalRows) x = 0;
+  else if (x < 0) x = totalRows - 1;
+  else if (y < 0) y = totalColumns - 1;
+  else if (y >= totalColumns) y = 0;
+
+  snake[0].direction = snakeDirection;
+  snake.unshift({ x, y, direction: snakeDirection });
 };
 
 const render = () => {
@@ -158,15 +169,15 @@ const drawApple = () => {
 
 const drawSnake = () => {
   for (let i = snake.length - 1; i >= 0; i--) {
-    if (i === 0) drawSnakeHead(i);
-    else if (i === snake.length - 1) drawSnakeTail(i);
+    if (i === 0) drawSnakeHead();
+    else if (i === snake.length - 1) drawSnakeTail();
     else drawSnakeBody(i);
   }
 };
 
-const drawSnakeHead = (index: number) => {
+const drawSnakeHead = () => {
   let head;
-  let { x, y, direction } = snake[index];
+  let { x, y, direction } = snake[0];
 
   if (direction === "top") {
     head = images.headUp;
@@ -180,23 +191,12 @@ const drawSnakeHead = (index: number) => {
 
   if (!head) return;
 
-  if (x >= totalRows) x = 0;
-  else if (x < 0) x = totalRows;
-  else if (y < 0) y = totalColumns;
-  else if (y >= totalColumns) y = 0;
-
-  snake[0].x = x;
-  snake[0].y = y;
-
-  x *= size;
-  y *= size;
-
-  ctx.drawImage(head, x, y, size, size);
+  ctx.drawImage(head, x * size, y * size, size, size);
 };
 
-const drawSnakeTail = (index: number) => {
+const drawSnakeTail = () => {
   let tail;
-  let { x, y, direction } = snake[index];
+  let { x, y, direction } = snake[snake.length - 1];
 
   if (direction === "top") {
     tail = images.tailDown;
@@ -257,19 +257,19 @@ const start = () => {
 
 const handleKeyDown = (event: KeyboardEvent) => {
   let direction = snake[0].direction;
+  let isGoingLeft = direction === "left";
+  let isGoingRight = direction === "right";
+  let isGoingTop = direction === "top";
+  let isGoingBottom = direction === "bottom";
 
-  if (direction === "top" || direction === "bottom") {
-    if (event.key === "ArrowLeft") {
-      snake[0].direction = "left";
-    } else if (event.key === "ArrowRight") {
-      snake[0].direction = "right";
-    }
-  } else if (direction === "left" || direction === "right") {
-    if (event.key === "ArrowUp") {
-      snake[0].direction = "top";
-    } else if (event.key === "ArrowDown") {
-      snake[0].direction = "bottom";
-    }
+  if (event.key === "ArrowLeft" && !isGoingRight) {
+    snakeDirection = "left";
+  } else if (event.key === "ArrowRight" && !isGoingLeft) {
+    snakeDirection = "right";
+  } else if (event.key === "ArrowUp" && !isGoingBottom) {
+    snakeDirection = "top";
+  } else if (event.key === "ArrowDown" && !isGoingTop) {
+    snakeDirection = "bottom";
   }
 };
 
