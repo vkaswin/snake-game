@@ -275,6 +275,7 @@ const handleKeyDown = (event: KeyboardEvent) => {
 
 const restart = () => {
   snake = [...initialSnake];
+  snakeDirection = initialDirection;
   clearBoard();
   drawBackGround();
   drawSnake();
